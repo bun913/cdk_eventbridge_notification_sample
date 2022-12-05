@@ -56,7 +56,7 @@ export class EventbridgeChatworkStack extends cdk.Stack {
     });
     const destination = new ApiDestination(this, 'Destination', {
       connection,
-      endpoint: process.env.ENDPOINT ?? '',
+      endpoint: `https://api.chatwork.com/v2/rooms/${process.env.ROOMID}/messages`,
       description: 'Calling example.com with API key x-api-key',
     });
     const rule = new Rule(this, 'testAlarmRule', {
@@ -69,10 +69,19 @@ export class EventbridgeChatworkStack extends cdk.Stack {
     });
     rule.addTarget(
       new cdk.aws_events_targets.ApiDestination(destination, {
-        event: RuleTargetInput.fromObject({
-          content: `:loudspeaker:${EventField.fromPath('$.detail.alarmName')}
-:new: ${EventField.fromPath('$.detail.state.reason')}`,
-        }),
+        // ChatWork用
+        queryStringParameters: {
+          body: `$.detail`,
+          self_unread: '1',
+        },
+        // Discord用
+        // event: RuleTargetInput.fromText(
+        //   `body=Title:${EventField.fromPath('$.detail.alarmName')}`
+        // )
+        // event: RuleTargetInput.fromObject({
+        //   body: `:loudspeaker:${EventField.fromPath('$.detail.alarmName')}
+        // :new: ${EventField.fromPath('$.detail.state.reason')}`,
+        // }),
       })
     );
   }
