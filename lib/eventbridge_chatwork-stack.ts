@@ -7,8 +7,10 @@ import {
   ApiDestination,
   Authorization,
   Connection,
+  EventField,
   HttpParameter,
   Rule,
+  RuleTargetInput,
 } from 'aws-cdk-lib/aws-events';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
@@ -23,7 +25,7 @@ export class EventbridgeChatworkStack extends cdk.Stack {
         metricName: 'CPUUtilization',
         dimensionsMap: {
           // 今回は手動で作成したEC2のIDを直で指定
-          InstanceId: 'i-',
+          InstanceId: 'i-0a51f37c60f7ba142',
         },
         statistic: 'Average',
         period: Duration.minutes(1),
@@ -51,11 +53,10 @@ export class EventbridgeChatworkStack extends cdk.Stack {
         })
       ),
       description: 'Connection with API Key X-ChatWorkToken',
-      bodyParameters: { body: HttpParameter.fromString('text, from CDK') },
     });
     const destination = new ApiDestination(this, 'Destination', {
       connection,
-      endpoint: `https://api.chatwork.com/v2/rooms/${process.env.ROOMID}/messages`,
+      endpoint: process.env.ENDPOINT ?? '',
       description: 'Calling example.com with API key x-api-key',
     });
     const rule = new Rule(this, 'testAlarmRule', {
@@ -65,7 +66,14 @@ export class EventbridgeChatworkStack extends cdk.Stack {
         detailType: ['CloudWatch Alarm State Change'],
         resources: [ec2CpuAlarm.alarmArn],
       },
-      targets: [new cdk.aws_events_targets.ApiDestination(destination)],
     });
+    rule.addTarget(
+      new cdk.aws_events_targets.ApiDestination(destination, {
+        event: RuleTargetInput.fromObject({
+          content: `:loudspeaker:${EventField.fromPath('$.detail.alarmName')}
+:new: ${EventField.fromPath('$.detail.state.reason')}`,
+        }),
+      })
+    );
   }
 }
